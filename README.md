@@ -1,6 +1,6 @@
 # Agent Policy Map
 
-[![CI](https://github.com/incline-ltd/agent-policy-map/actions/workflows/ci.yml/badge.svg)](https://github.com/incline-ltd/agent-policy-map/actions/workflows/ci.yml)
+[![CI](https://github.com/ashishkaloge/agent-policy-map/actions/workflows/ci.yml/badge.svg)](https://github.com/ashishkaloge/agent-policy-map/actions/workflows/ci.yml)
 [![Node.js 20+](https://img.shields.io/badge/Node.js-20%2B-339933)](https://nodejs.org/)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -18,7 +18,7 @@ API key, telemetry service, network service, or LLM.
 Requires Node.js 20 or newer.
 
 ```bash
-git clone https://github.com/incline-ltd/agent-policy-map.git
+git clone https://github.com/ashishkaloge/agent-policy-map.git
 cd agent-policy-map
 npm ci
 npm run build
@@ -442,10 +442,10 @@ security-relevant policy results privately. See [SECURITY.md](SECURITY.md).
 
 ## Related projects
 
-- [coding-agent-guidelines](https://github.com/incline-ltd/coding-agent-guidelines)
-- [production-launch-prompts](https://github.com/incline-ltd/production-launch-prompts)
-- [awesome-agentic-engineering](https://github.com/incline-ltd/awesome-agentic-engineering)
-- [awesome-agent-instructions](https://github.com/incline-ltd/awesome-agent-instructions)
+- [coding-agent-guidelines](https://github.com/ashishkaloge/coding-agent-guidelines)
+- [production-launch-prompts](https://github.com/ashishkaloge/production-launch-prompts)
+- [awesome-agentic-engineering](https://github.com/ashishkaloge/awesome-agentic-engineering)
+- [awesome-agent-instructions](https://github.com/ashishkaloge/awesome-agent-instructions)
 
 ## License
 
