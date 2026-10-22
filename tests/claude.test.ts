@@ -1,5 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { run, fix, byState, paths, findByPath, hasDiagnostic } from "./helpers.js";
+import { afterEach, describe, it, expect } from "vitest";
+import path from "node:path";
+import fs from "node:fs";
+import { run, fix, byState, paths, findByPath, hasDiagnostic, mkTemp, rmTemp, writeFile } from "./helpers.js";
 
 describe("claude adapter", () => {
   const importsRoot = fix("claude/imports");
@@ -119,5 +121,141 @@ describe("claude adapter", () => {
     });
     // No external import in this fixture, but the safety property is asserted in safety.test.ts.
     expect(map.diagnostics.every((d) => d.code !== "external-import")).toBe(true);
+  });
+});
+
+describe("Claude AGENTS.md discovery", () => {
+  const temps: string[] = [];
+  afterEach(() => { while (temps.length) rmTemp(temps.pop()!); });
+
+  function project(files: Record<string, string>, mode?: string, plugin = "cc-plugin-agents-md@builtin") {
+    const base = mkTemp("apm-claude-agents-");
+    temps.push(base);
+    const root = path.join(base, "project");
+    const home = path.join(base, "home");
+    for (const [file, content] of Object.entries(files)) writeFile(path.join(root, file), content);
+    writeFile(path.join(root, "src/app.ts"), "export {};\n");
+    if (mode !== undefined) writeFile(path.join(home, ".claude/settings.json"), JSON.stringify({
+      pluginConfigs: { [plugin]: { options: { instructionFiles: mode } } },
+    }));
+    return { agent: "claude" as const, target: path.join(root, "src/app.ts"), cwd: root, root, env: { HOME: home } };
+  }
+
+  it("loads AGENTS.md and .claude/AGENTS.md by default and expands their imports", () => {
+    const input = project({
+      "AGENTS.md": "@shared.md\n", ".claude/AGENTS.md": "Dot-folder guidance.\n",
+      "shared.md": "Shared guidance.\n", "src/AGENTS.md": "Nested guidance.\n",
+      "AGENTS.override.md": "Not a Claude file.\n", "AGENTS.local.md": "Not a Claude file.\n",
+    });
+    const map = run(input);
+    expect(findByPath(map, "./AGENTS.md")?.state).toBe("active");
+    expect(findByPath(map, "./.claude/AGENTS.md")?.state).toBe("active");
+    expect(findByPath(map, "./shared.md")?.kind).toBe("claude-import");
+    expect(findByPath(map, "./src/AGENTS.md")?.state).toBe("conditional");
+    expect(findByPath(map, "./AGENTS.override.md")).toBeUndefined();
+    expect(findByPath(map, "./AGENTS.local.md")).toBeUndefined();
+    expect(map.assumptions.join(" ")).toContain("v2.1.285+");
+  });
+
+  it.each(["CLAUDE.md", ".claude/CLAUDE.md", "CLAUDE.local.md"])(
+    "suppresses fallback when %s exists on the launch path, even if empty",
+    (name) => {
+      const input = project({ "AGENTS.md": "Shared guidance.\n", [name]: "" });
+      const map = run({ ...input, cwd: path.join(input.root, "src") });
+      expect(findByPath(map, "./AGENTS.md")).toBeUndefined();
+    },
+  );
+
+  it("lets nested Claude files suppress only their own AGENTS.md", () => {
+    const map = run(project({
+      "AGENTS.md": "Root guidance.\n", "src/CLAUDE.md": "Nested Claude guidance.\n",
+      "src/AGENTS.md": "Nested shared guidance.\n",
+    }));
+    expect(findByPath(map, "./AGENTS.md")?.state).toBe("active");
+    expect(findByPath(map, "./src/CLAUDE.md")?.state).toBe("conditional");
+    expect(findByPath(map, "./src/AGENTS.md")).toBeUndefined();
+  });
+
+  it("keeps user memory and project rules alongside automatic AGENTS.md", () => {
+    const input = project({
+      "AGENTS.md": "Shared guidance.\n", ".claude/rules/style.md": "Style guidance.\n",
+    });
+    writeFile(path.join(input.env.HOME, ".claude/CLAUDE.md"), "Personal guidance.\n");
+    const map = run({ ...input, includeUser: true });
+    expect(findByPath(map, "./AGENTS.md")?.state).toBe("active");
+    expect(findByPath(map, "~/.claude/CLAUDE.md")?.state).toBe("active");
+    expect(findByPath(map, "./.claude/rules/style.md")?.state).toBe("active");
+  });
+
+  it("applies exclusions to AGENTS.md without following excluded imports", () => {
+    const input = project({ "AGENTS.md": "@shared.md\n", "shared.md": "Shared guidance.\n" });
+    writeFile(path.join(input.root, ".claude/settings.json"), JSON.stringify({ claudeMdExcludes: ["**/AGENTS.md"] }));
+    const map = run(input);
+    expect(findByPath(map, "./AGENTS.md")?.state).toBe("excluded");
+    expect(findByPath(map, "./shared.md")).toBeUndefined();
+  });
+
+  it.each(["cc-plugin-agents-md@builtin", "agents-md@builtin"])(
+    "honors the combined mode from user settings (%s) and deduplicates imports", (plugin) => {
+      const input = project({
+        "AGENTS.md": "@shared.md\n", "CLAUDE.md": "@AGENTS.md\n",
+        "shared.md": "Shared guidance.\n", "src/AGENTS.md": "Nested shared guidance.\n",
+        "src/CLAUDE.md": "Nested Claude guidance.\n",
+      }, "claude-md-and-agents-md", plugin);
+      const map = run({ ...input, includeUser: true });
+      expect(map.sources.filter((s) => s.path === "./AGENTS.md")).toHaveLength(1);
+      expect(findByPath(map, "./AGENTS.md")?.kind).toBe("claude-agents-md");
+      expect(map.sources.filter((s) => s.path === "./shared.md")).toHaveLength(1);
+      expect(findByPath(map, "./src/AGENTS.md")?.state).toBe("conditional");
+      expect(findByPath(map, "./CLAUDE.md")!.order).toBeLessThan(findByPath(map, "./AGENTS.md")!.order!);
+    },
+  );
+
+  it("does not read user instruction modes without opt-in or honor project/local modes", () => {
+    const input = project({ "AGENTS.md": "Shared guidance.\n" }, "claude-md");
+    const settings = JSON.stringify({ pluginConfigs: { "cc-plugin-agents-md@builtin": { options: { instructionFiles: "managed-only" } } } });
+    writeFile(path.join(input.root, ".claude/settings.json"), settings);
+    writeFile(path.join(input.root, ".claude/settings.local.json"), settings);
+    expect(findByPath(run(input), "./AGENTS.md")?.state).toBe("active");
+    expect(findByPath(run({ ...input, includeUser: true }), "./AGENTS.md")).toBeUndefined();
+  });
+
+  it("does not count a CLAUDE.md symlink to AGENTS.md twice in combined mode", () => {
+    const input = project({ "AGENTS.md": "@shared.md\n", "shared.md": "Shared guidance.\n" }, "claude-md-and-agents-md");
+    fs.symlinkSync("AGENTS.md", path.join(input.root, "CLAUDE.md"));
+    const map = run({ ...input, includeUser: true });
+    expect(findByPath(map, "./CLAUDE.md")?.state).toBe("active");
+    expect(findByPath(map, "./AGENTS.md")?.state).toBe("excluded");
+    expect(findByPath(map, "./AGENTS.md")?.matchReason).toContain("Already loaded through ./CLAUDE.md");
+    expect(map.sources.filter((s) => s.path === "./shared.md")).toHaveLength(1);
+  });
+
+  it("keeps explicitly imported nested AGENTS.md active, including its imports", () => {
+    const input = project({
+      "CLAUDE.md": "@src/AGENTS.md\n", "src/AGENTS.md": "@shared.md\n",
+      "src/shared.md": "Shared guidance.\n",
+    }, "claude-md-and-agents-md");
+    const map = run({ ...input, includeUser: true });
+    expect(map.sources.filter((s) => s.path === "./src/AGENTS.md")).toHaveLength(1);
+    expect(findByPath(map, "./src/AGENTS.md")?.state).toBe("active");
+    expect(findByPath(map, "./src/shared.md")?.state).toBe("active");
+  });
+
+  it("models managed-only startup exclusions while retaining on-demand project rules", () => {
+    const input = project({
+      "AGENTS.md": "Shared guidance.\n", "CLAUDE.md": "Project guidance.\n",
+      ".claude/rules/global.md": "Startup rule.\n",
+      ".claude/rules/typed.md": "---\npaths: src/**/*.ts\n---\nTyped rule.\n",
+      "src/CLAUDE.md": "Nested guidance.\n", "src/AGENTS.md": "Nested shared guidance.\n",
+      "src/.claude/rules/local.md": "Nested rule.\n",
+    }, "managed-only");
+    const map = run({ ...input, includeUser: true });
+    expect(findByPath(map, "./CLAUDE.md")).toBeUndefined();
+    expect(findByPath(map, "./AGENTS.md")?.state).toBe("excluded");
+    expect(findByPath(map, "./src/AGENTS.md")?.state).toBe("excluded");
+    expect(findByPath(map, "./.claude/rules/global.md")?.state).toBe("excluded");
+    expect(findByPath(map, "./.claude/rules/typed.md")?.state).toBe("active");
+    expect(findByPath(map, "./src/CLAUDE.md")?.state).toBe("conditional");
+    expect(findByPath(map, "./src/.claude/rules/local.md")?.state).toBe("conditional");
   });
 });

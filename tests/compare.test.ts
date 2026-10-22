@@ -83,7 +83,7 @@ describe("cross-agent comparison", () => {
       root: "codex/nested",
       cwd: "codex/nested/apps/api",
       target: "codex/nested/apps/api/src/auth.ts",
-      differences: 2,
+      differences: 0,
     },
     {
       root: "claude/rules",
@@ -180,6 +180,25 @@ function compareTemp(
 }
 
 describe("documented suggestions", () => {
+  it("does not suggest importing AGENTS.md when current Claude already reads it", () => {
+    const result = compareTemp({ "AGENTS.md": "Shared guidance.\n" });
+    const agents = sourceAt(result.sources, "./AGENTS.md");
+    expect(states(agents, "claude")).toEqual(["active"]);
+    expect(agents.meaningfulDifference).toBe(false);
+    expect(agents.suggestions).toEqual([]);
+  });
+
+  it("requires renaming Cursor rules to .md for Claude discovery", () => {
+    const result = compareTemp({
+      ".cursor/rules/typed.mdc": "---\nglobs: src/**/*.ts\nalwaysApply: false\n---\nTyped guidance.\n",
+      ".claude/rules/typed.md": "---\npaths: src/**/*.ts\n---\nTyped guidance.\n",
+    });
+    expect(suggestionsFor(sourceAt(result.sources, "./.cursor/rules/typed.mdc"), "claude")).toEqual([
+      "copy it into ./.claude/rules/ as a .md rule; a `paths:` field keeps it path-scoped",
+    ]);
+    expect(states(sourceAt(result.sources, "./.claude/rules/typed.md"), "claude")).toEqual(["active"]);
+  });
+
   it("suggests an AGENTS.md import for Claude Code next to each AGENTS.md", () => {
     const root = fix("copilot/basic");
     const result = compareFixture(root, fix("copilot/basic/src/app.ts"));

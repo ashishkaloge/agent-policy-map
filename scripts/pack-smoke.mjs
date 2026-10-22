@@ -104,8 +104,9 @@ try {
   const comparison = JSON.parse(comparisonOutput);
   assert(comparison.command === "compare", "installed CLI returned the wrong comparison command");
   assert(
-    comparison.summary.meaningfulDifferences === 1,
-    "installed CLI did not report the cross-agent AGENTS.md difference",
+    comparison.summary.meaningfulDifferences === 0 &&
+      comparison.sources.find((source) => source.path === "./AGENTS.md")?.agents.claude[0]?.state === "active",
+    "installed CLI did not recognize current Claude AGENTS.md fallback",
   );
 
   const libraryUrl = pathToFileURL(

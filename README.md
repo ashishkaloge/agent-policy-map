@@ -28,8 +28,8 @@ node dist/cli.js compare fixtures/copilot/basic/src/app.ts \
 ```
 
 The result is a four-column policy matrix. It shows, for example, that
-`AGENTS.md` is active for Codex, Cursor, and Copilot in this fixture but is not
-discovered by Claude Code. It also gives the documented reason behind every
+`AGENTS.md` is active for Codex, Cursor, and Copilot in this fixture. Claude
+loads its existing `CLAUDE.md` files instead. It also gives the documented reason behind every
 meaningful difference and, where an agent's documented discovery rules allow
 it, a suggested change with a link to that documentation, such as adding
 `@AGENTS.md` to `CLAUDE.md` so Claude Code imports it. Discovered instruction
@@ -45,7 +45,7 @@ first package release.
 | Surface | What is modeled | Current evidence | Explicit boundary |
 | --- | --- | --- | --- |
 | Codex CLI | Project documents, same-directory overrides, configured fallbacks, and supported skill catalogs | Fixtures, CLI tests, and public-repository scan | Project `.codex/config.toml` controls, trust settings, and session overrides are not fully modeled; other Codex surfaces have no separate live-host parity proof |
-| Claude Code | Memory layers, imports, scoped rules, exclusions, and visible managed/user locations | Fixtures, CLI tests, and public-repository scan | Automatic memory, Claude Desktop, session-only state, and files outside the selected root are not modeled |
+| Claude Code | Memory layers, AGENTS.md fallback and user instruction modes, imports, scoped rules, exclusions, and visible managed/user locations | Fixtures, CLI tests, and public-repository scan | Automatic memory, Claude Desktop, plugin availability, session/managed settings overrides, and files outside the selected root are not modeled |
 | Cursor IDE | `.cursor/rules/**/*.mdc`, references, activation modes, and nested `AGENTS.md` | Fixtures, CLI tests, and public-repository scan | Cursor CLI-specific `CLAUDE.md`, legacy `.cursorrules`, cloud rules, and account rules are not modeled |
 | GitHub Copilot CLI | Repository, path-specific, user, agent, and imported instructions | Fixtures, CLI tests, and public-repository scan | Copilot for VS Code, GitHub.com, cloud agent, and code review are not modeled |
 | JSON and TypeScript library | Versioned `PolicyMap`, diagnostics, assumptions, and context estimates | Built CLI and package smoke checks | Consumers must evaluate diagnostic levels; exit `0` does not mean conflict-free |
@@ -110,26 +110,29 @@ the Codex app, Claude Desktop, Cursor CLI, or Copilot for VS Code.
 For each meaningful difference in a project file, `compare` suggests a change
 for every agent that does not load the file, based only on that agent's
 documented discovery rules. Each suggestion is printed under the agent it is
-for and cites its source:
+for and cites its source. This fixture has `CLAUDE.md` files, so Claude's
+default mode does not load `AGENTS.md` directly:
 
 ```bash
-node dist/cli.js compare fixtures/codex/nested/apps/api/src/auth.ts \
-  --cwd fixtures/codex/nested/apps/api \
-  --root fixtures/codex/nested
+node dist/cli.js compare fixtures/copilot/basic/src/app.ts \
+  --cwd fixtures/copilot/basic \
+  --root fixtures/copilot/basic
 ```
 
 ```text
 WHY THEY DIFFER
+...
 ./AGENTS.md
   codex active [codex-agents-md]: AGENTS.md discovered on the root→cwd path (./)
   claude —: not discovered by this modeled adapter
-    suggestion: add `@AGENTS.md` to ./CLAUDE.md, creating it if needed [1]
+    suggestion: add `@AGENTS.md` to ./CLAUDE.md, creating it if needed [5]
   cursor active [cursor-agents-md]: AGENTS.md applies to its directory subtree (./)
   copilot active [copilot-agents-md]: AGENTS.md found on the repository-root-to-target search path
 ...
 
 Suggestions apply documented discovery rules, for when you want that agent to read the file. They do not show that an agent will load or follow it.
-[1] https://code.claude.com/docs/en/memory#share-one-file-with-other-coding-tools
+...
+[5] https://code.claude.com/docs/en/memory#share-one-file-with-other-coding-tools
 ```
 
 Suggestions cover `@` imports for Claude Code and Copilot CLI, the AGENTS.md
@@ -139,6 +142,29 @@ path-scoped rule format. A suggestion applies only if you want that agent to
 read the file; some differences are intentional. Files outside the project,
 manual-only rules, personal files such as `CLAUDE.local.md`, Codex
 `AGENTS.override.md`, and skills get no suggestion.
+
+### Claude Code instruction modes
+
+The adapter models current Claude Code (v2.1.285+) with its built-in AGENTS.md
+plugin available. Automatic AGENTS.md support began in v2.1.277. In the
+default `claude-md-or-agents-md` mode, it reads `AGENTS.md` and
+`.claude/AGENTS.md` on the root-to-launch path when that path contains no
+`CLAUDE.md`, `.claude/CLAUDE.md`, or `CLAUDE.local.md`. Nested AGENTS.md files
+are conditional and yield to Claude files in their own directory. Existing
+user memory and `.claude/rules/` do not disable this fallback.
+
+With `--include-user`, the adapter reads `instructionFiles` from
+`~/.claude/settings.json`, under the `cc-plugin-agents-md@builtin` or legacy
+`agents-md@builtin` entry in `pluginConfigs`. It models the default,
+`claude-md-and-agents-md`, `claude-md`, and `managed-only` modes. Project and
+local settings cannot change this option. Without user-scope opt-in, the
+documented default is assumed.
+
+Plugin availability, session `--settings`, managed settings overrides, and
+instruction files above `--root` remain unknown. In particular, a Claude file
+above that boundary can suppress automatic AGENTS.md fallback. See
+[Claude's instruction-file documentation](https://code.claude.com/docs/en/memory#agentsmd)
+and the inspection assumptions before relying on the result.
 
 ## Commands
 

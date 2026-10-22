@@ -35,6 +35,7 @@ const DOC_KINDS = new Set([
   "codex-agents-md",
   "codex-agents-fallback",
   "claude-memory",
+  "claude-agents-md",
   "cursor-agents-md",
   "cursor-reference",
   "copilot-agents-md",
@@ -173,7 +174,7 @@ function suggestClaude({ entries, file, family }: SuggestInput): Suggestion | un
   }
   if (family === "rule") {
     return {
-      text: `copy it into ${at(file.scope, ".claude/rules/")}; a \`paths:\` field keeps it path-scoped`,
+      text: `copy it into ${at(file.scope, ".claude/rules/")} as a .md rule; a \`paths:\` field keeps it path-scoped`,
       reference: SUGGESTION_DOCS.claudeRules,
     };
   }

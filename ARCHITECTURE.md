@@ -139,7 +139,8 @@ Each adapter owns only behavior specific to its documented surface:
 
 - `codex.ts`: Codex project documents, same-directory overrides, configured
   fallbacks, and supported skill catalogs;
-- `claude.ts` and `claude-imports.ts`: Claude memory layers, lazy nested
+- `claude.ts` and `claude-imports.ts`: Claude memory layers, current AGENTS.md
+  fallback, opt-in user instruction modes, deduplicated AGENTS.md imports, lazy nested
   sources, imports, exclusions, and scoped rules;
 - `cursor.ts`: Cursor IDE `.mdc` activation modes, nested `AGENTS.md`, and
   references;

@@ -109,16 +109,16 @@ check("cursor human output is grouped by state", () => {
 check("compare reports meaningful differences across all four surfaces", () => {
   const out = runCli([
     "compare",
-    fix("codex/nested/apps/api/src/auth.ts"),
+    fix("copilot/basic/src/app.ts"),
     "--cwd",
-    fix("codex/nested/apps/api"),
+    fix("copilot/basic"),
     "--root",
-    fix("codex/nested"),
+    fix("copilot/basic"),
     "--json",
   ]);
   const comparison = JSON.parse(out);
   if (comparison.command !== "compare") throw new Error("bad command");
-  if (comparison.summary.meaningfulDifferences !== 2) {
+  if (comparison.summary.meaningfulDifferences !== 14) {
     throw new Error("unexpected meaningful-difference count");
   }
   const surfaces = Object.values(comparison.agents).map((agent) => agent.surface);
