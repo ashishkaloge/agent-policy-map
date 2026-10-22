@@ -60,6 +60,7 @@ versioned PolicyMap
         +--> compare composes four PolicyMaps
                     |
                     +--> cross-agent matrix
+                    +--> documented suggestions
                     +--> versioned PolicyComparison
 ```
 
@@ -84,6 +85,10 @@ Target, cwd, and root are separate on purpose. Codex project-document discovery
 depends on launch cwd, while path-scoped rules depend on the target. Root defines
 the project read boundary.
 
+All three resolve from the process directory. The CLI rejects a target that is
+not an existing file before inspection. The library still accepts a planned
+target path and records an assumption that it does not exist.
+
 `inspect` evaluates one concrete target. `discover` lists sources visible from
 the launch context and marks target-dependent sources as conditional rather
 than pretending they are universally active.
@@ -94,6 +99,12 @@ meaningful difference only when loadable states or represented content differ.
 Excluded-only and unknown-external-only rows remain visible but do not inflate
 that count. It does not merge instructions, choose a winner, or infer
 cross-agent precedence.
+
+`src/core/suggest.ts` adds suggestions to meaningful differences in project
+files. Each one targets an agent that does not load the file, applies one
+documented discovery rule of that agent, and cites the official page. It
+reads only the already-redacted comparison rows, never files, and it never
+claims that an agent loads or follows the result.
 
 ## Normalized contract
 
@@ -118,7 +129,8 @@ The versioned `PolicyComparison` contract also lives in `src/types.ts`. It
 contains the shared target context, a difference summary, grouped source arrays,
 and each agent's surface label, assumptions, diagnostics, and context estimate.
 Arrays are intentional because multiple source entries can share one redacted
-display path.
+display path. Each row also carries a `suggestions` array, added to version 1
+without changing existing fields.
 
 ## Agent adapters
 
@@ -127,7 +139,8 @@ Each adapter owns only behavior specific to its documented surface:
 
 - `codex.ts`: Codex project documents, same-directory overrides, configured
   fallbacks, and supported skill catalogs;
-- `claude.ts` and `claude-imports.ts`: Claude memory layers, lazy nested
+- `claude.ts` and `claude-imports.ts`: Claude memory layers, current AGENTS.md
+  fallback, opt-in user instruction modes, deduplicated AGENTS.md imports, lazy nested
   sources, imports, exclusions, and scoped rules;
 - `cursor.ts`: Cursor IDE `.mdc` activation modes, nested `AGENTS.md`, and
   references;
@@ -145,7 +158,8 @@ report ambiguity or omit `order` instead of choosing a convenient winner.
 src/
   adapters/     agent-specific discovery behind one interface
   context/      byte, line, and labelled token estimates
-  core/         context resolution, inspection orchestration, stable IDs
+  core/         context resolution, inspection orchestration, stable IDs,
+                comparison and documented suggestions
   diagnostics/  duplicates and evidence-backed possible conflicts
   frontmatter/  YAML parsing and documented-field validation
   fs/           contained, bounded reads and directory traversal

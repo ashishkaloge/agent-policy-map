@@ -109,22 +109,41 @@ check("cursor human output is grouped by state", () => {
 check("compare reports meaningful differences across all four surfaces", () => {
   const out = runCli([
     "compare",
-    fix("codex/nested/apps/api/src/auth.ts"),
+    fix("copilot/basic/src/app.ts"),
     "--cwd",
-    fix("codex/nested/apps/api"),
+    fix("copilot/basic"),
     "--root",
-    fix("codex/nested"),
+    fix("copilot/basic"),
     "--json",
   ]);
   const comparison = JSON.parse(out);
   if (comparison.command !== "compare") throw new Error("bad command");
-  if (comparison.summary.meaningfulDifferences !== 2) {
+  if (comparison.summary.meaningfulDifferences !== 14) {
     throw new Error("unexpected meaningful-difference count");
   }
   const surfaces = Object.values(comparison.agents).map((agent) => agent.surface);
   for (const want of ["Codex CLI", "Claude Code", "Cursor IDE", "GitHub Copilot CLI"]) {
     if (!surfaces.includes(want)) throw new Error(`missing surface ${want}`);
   }
+  const suggestions = comparison.sources.flatMap((source) => source.suggestions);
+  if (suggestions.length === 0 || !suggestions.every((s) => s.reference.startsWith("https://"))) {
+    throw new Error("expected documented suggestions with references");
+  }
+});
+
+check("compare rejects a target that does not exist", () => {
+  try {
+    execFileSync("node", [cli, "compare", fix("codex/nested/apps/api/src/missing.ts")], {
+      encoding: "utf8",
+      stdio: "pipe",
+    });
+  } catch (err) {
+    if (err.status !== 1 || !/was not found/.test(err.stderr)) {
+      throw new Error("unexpected failure for a missing target");
+    }
+    return;
+  }
+  throw new Error("missing target exited 0");
 });
 
 if (failures > 0) {

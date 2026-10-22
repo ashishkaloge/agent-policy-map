@@ -23,6 +23,7 @@ export type {
   PolicyMap,
   ComparisonAgent,
   ComparisonSource,
+  ComparisonSuggestion,
   PolicyComparison,
 } from "./types.js";
 export type {

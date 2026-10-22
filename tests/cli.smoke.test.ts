@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterEach } from "vitest";
 import { execFileSync } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { fix, mkTemp, rmTemp, writeFile } from "./helpers.js";
@@ -102,6 +103,30 @@ describe("cli smoke (built dist)", () => {
     expect(r.stdout).not.toContain("Use npm for installs across this repository.");
   });
 
+  it("compare prints documented suggestions under the agent they are for", () => {
+    const r = cli([
+      "compare",
+      fix("copilot/basic/src/app.ts"),
+      "--cwd",
+      fix("copilot/basic"),
+      "--root",
+      fix("copilot/basic"),
+    ]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain(
+      [
+        "  claude —: not discovered by this modeled adapter",
+        "    suggestion: add `@AGENTS.md` to ./CLAUDE.md, creating it if needed [5]",
+      ].join("\n"),
+    );
+    expect(r.stdout).toContain(
+      "They do not show that an agent will load or follow it.",
+    );
+    expect(r.stdout).toContain(
+      "[5] https://code.claude.com/docs/en/memory#share-one-file-with-other-coding-tools",
+    );
+  });
+
   it("compare keeps warning diagnostics visible in human output", () => {
     const r = cli([
       "compare",
@@ -130,11 +155,15 @@ describe("cli smoke (built dist)", () => {
       version: string;
       command: string;
       summary: { meaningfulDifferences: number };
+      sources: Array<{ suggestions: Array<{ agent: string }> }>;
       agents: Record<string, { surface: string }>;
     };
     expect(comparison.version).toBe("1");
     expect(comparison.command).toBe("compare");
-    expect(comparison.summary.meaningfulDifferences).toBe(2);
+    expect(comparison.summary.meaningfulDifferences).toBe(0);
+    expect(
+      comparison.sources.flatMap((source) => source.suggestions.map((s) => s.agent)),
+    ).toEqual([]);
     expect(Object.keys(comparison.agents)).toEqual([
       "codex",
       "claude",
@@ -154,6 +183,56 @@ describe("cli smoke (built dist)", () => {
     expect(agent.stderr).toMatch(/checks all supported agents/);
     expect(content.code).toBe(1);
     expect(content.stderr).toMatch(/not supported for compare/);
+  });
+
+  it("rejects a target that only exists relative to --cwd and names the path to pass", () => {
+    const caller = temp("apm-cli-caller-");
+    const root = fix("copilot/basic");
+    const r = cli(["compare", "src/app.ts", "--cwd", root, "--root", root], {
+      cwd: caller,
+    });
+
+    expect(r.code).toBe(1);
+    expect(r.stdout).toBe("");
+    expect(r.stderr).toContain(
+      'target "src/app.ts" was not found from the current directory. Targets resolve from the current directory, not from --cwd',
+    );
+    expect(r.stderr).toContain(`pass "${path.join(root, "src/app.ts")}" instead`);
+  });
+
+  it("rejects missing and directory targets for every target-based command", () => {
+    const caller = temp("apm-cli-missing-");
+    const missing = cli(["compare", "src/missing.ts", "--cwd", fix("copilot/basic")], {
+      cwd: caller,
+    });
+    const directory = cli(["compare", fix("copilot/basic/src")]);
+    const inspect = cli(["inspect", "src/missing.ts", "--agent", "codex"], { cwd: caller });
+    const explain = cli(
+      ["explain", "codex:codex-agents-md:AGENTS.md", "--agent", "codex", "--target", "missing.ts"],
+      { cwd: caller },
+    );
+
+    expect(missing.code).toBe(1);
+    expect(missing.stderr).toMatch(/targets do not resolve from --cwd/);
+    expect(directory.code).toBe(1);
+    expect(directory.stderr).toMatch(/is a directory; pass a file path/);
+    expect(inspect.code).toBe(1);
+    expect(inspect.stderr).toMatch(/"src\/missing.ts" was not found from the current directory/);
+    expect(explain.code).toBe(1);
+    expect(explain.stderr).toMatch(/"missing.ts" was not found from the current directory/);
+  });
+
+  it("accepts a symlinked target file as an existing target", () => {
+    const root = temp("apm-cli-symlink-target-");
+    writeFile(path.join(root, ".git", ".keep"), "");
+    writeFile(path.join(root, "AGENTS.md"), "Public fixture policy.\n");
+    writeFile(path.join(root, "src", "real.ts"), "export {};\n");
+    fs.symlinkSync(path.join(root, "src", "real.ts"), path.join(root, "src", "link.ts"));
+
+    const r = cli(["compare", path.join(root, "src", "link.ts"), "--cwd", root, "--root", root]);
+
+    expect(r.code).toBe(0);
+    expect(r.stdout).not.toMatch(/does not exist on disk/);
   });
 
   it("compare without explicit context does not print absolute project paths", () => {

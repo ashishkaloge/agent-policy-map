@@ -11,6 +11,7 @@ import type {
 import { redact } from "../security/redact.js";
 import type { BuildContextInput } from "./context.js";
 import { inspectWithContext } from "./inspect.js";
+import { suggestChanges } from "./suggest.js";
 
 export type CompareInput = Omit<
   BuildContextInput,
@@ -89,13 +90,18 @@ export function compare(input: CompareInput): PolicyComparison {
     }
   }
 
-  const sources: ComparisonSource[] = [...grouped.entries()]
+  const rows: ComparisonSource[] = [...grouped.entries()]
     .sort(([a], [b]) => sortPaths(a, b))
     .map(([sourcePath, agents]) => ({
       path: sourcePath,
       meaningfulDifference: isMeaningfulDifference(agents),
       agents,
+      suggestions: [],
     }));
+  const sources = rows.map((source) => ({
+    ...source,
+    suggestions: suggestChanges(source, { cwd: first.map.cwd, sources: rows }),
+  }));
   const meaningfulDifferences = sources.filter(
     (source) => source.meaningfulDifference,
   ).length;

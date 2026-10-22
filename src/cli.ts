@@ -10,8 +10,9 @@ import { renderComparisonHuman } from "./render/compare-human.js";
 import { renderJson } from "./render/json.js";
 import { AGENT_NAMES, isAgentName } from "./adapters/registry.js";
 import { redact } from "./security/redact.js";
-import { readTextForContext } from "./adapters/shared.js";
+import { isDir, isFile, readTextForContext } from "./adapters/shared.js";
 import { isReadError } from "./fs/read.js";
+import { normalizeAbs } from "./fs/paths.js";
 
 const USAGE = `agent-policy-map — explain which coding-agent instructions apply to a file, and why.
 
@@ -29,6 +30,9 @@ Options:
   --show-content     Include redacted local content for inspect/discover
   --json             Machine-readable JSON output
   -h, --help         Show this help
+
+<target> and --target resolve from the current directory, not from --cwd, and
+must name an existing file.
 
 This tool is local, read-only, and deterministic. It never executes or follows
 discovered instructions, and never performs network requests.`;
@@ -75,6 +79,28 @@ function requireAgent(agent: string | undefined): "codex" | "claude" | "cursor" 
   if (!agent) fail("--agent is required");
   if (!isAgentName(agent!)) fail(`unknown agent "${agent}". Use one of: ${AGENT_NAMES.join(", ")}`);
   return agent as "codex" | "claude" | "cursor" | "copilot";
+}
+
+/**
+ * Require the target to be an existing file, resolved from the process
+ * directory as documented. When the path only exists relative to --cwd, name
+ * that path so the user can rerun with it.
+ */
+function requireTargetFile(target: string, cli: Cli): void {
+  const abs = normalizeAbs(target);
+  if (isFile(abs)) return;
+  if (isDir(abs)) fail(`target "${target}" is a directory; pass a file path`);
+
+  const cwd = cli.values.cwd;
+  if (cwd === undefined || path.isAbsolute(target)) {
+    fail(`target "${target}" was not found from the current directory`);
+  }
+  const fromCwd = path.join(cwd!, target);
+  fail(
+    isFile(normalizeAbs(fromCwd))
+      ? `target "${target}" was not found from the current directory. Targets resolve from the current directory, not from --cwd; pass "${fromCwd}" instead`
+      : `target "${target}" was not found from the current directory (targets do not resolve from --cwd)`,
+  );
 }
 
 /** Resolve a display path (`./x`, `~/x`, or absolute) back to an absolute path. */
@@ -135,6 +161,7 @@ function runInspect(cli: Cli): void {
   const target = cli.positionals[1];
   if (!target) fail("inspect requires a <target> file path");
   const agent = requireAgent(cli.values.agent);
+  requireTargetFile(target!, cli);
   const { map, ctx } = inspectWithContext({
     ...commonInput(cli, agent, target!),
     mode: "inspect",
@@ -151,6 +178,7 @@ function runCompare(cli: Cli): void {
   if (cli.values["show-content"]) {
     fail("--show-content is not supported for compare");
   }
+  requireTargetFile(target!, cli);
 
   const comparison = compare({
     target,
@@ -189,6 +217,7 @@ function runExplain(cli: Cli): void {
   const agent = requireAgent(cli.values.agent);
   const target = cli.values.target;
   if (!target) fail("explain requires --target <file> (plus --agent, and --cwd/--root to match inspect)");
+  requireTargetFile(target!, cli);
   const map = inspect({ ...commonInput(cli, agent, target!), mode: "inspect" });
   const source = map.sources.find((s) => s.id === id);
   if (!source) {

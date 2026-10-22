@@ -74,6 +74,8 @@ export function resolveImports(
   ctx: InspectContext,
   rootFile: { abs: string; content: string; display: string },
   parentState: SourceState,
+  alreadyLoaded: ReadonlySet<string> = new Set(),
+  onAlreadyLoaded?: (identity: string) => void,
 ): ImportResult {
   const sources: PolicySource[] = [];
   const diagnostics: Diagnostic[] = [];
@@ -169,6 +171,10 @@ export function resolveImports(
           message: `Import cycle detected: ${file.display} re-imports ${display}`,
           paths: [file.display, display],
         });
+        continue;
+      }
+      if (alreadyLoaded.has(real)) {
+        onAlreadyLoaded?.(real);
         continue;
       }
       if (seenGlobal.has(real)) {
