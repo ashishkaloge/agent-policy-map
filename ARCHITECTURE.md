@@ -84,6 +84,10 @@ Target, cwd, and root are separate on purpose. Codex project-document discovery
 depends on launch cwd, while path-scoped rules depend on the target. Root defines
 the project read boundary.
 
+All three resolve from the process directory. The CLI rejects a target that is
+not an existing file before inspection. The library still accepts a planned
+target path and records an assumption that it does not exist.
+
 `inspect` evaluates one concrete target. `discover` lists sources visible from
 the launch context and marks target-dependent sources as conditional rather
 than pretending they are universally active.

@@ -121,6 +121,15 @@ npm run cli -- compare apps/api/src/auth.ts --cwd . --root .
 checked. It also does not accept `--show-content`; the comparison contains
 metadata and evidence-backed reasons, never instruction bodies.
 
+The target resolves from the current directory, not from `--cwd`, and must be
+an existing file. When a relative target exists only under `--cwd`, the error
+names the path to pass instead. For example, `compare src/auth.ts --cwd
+apps/api` run from `fixtures/codex/nested` fails with:
+
+```text
+error: target "src/auth.ts" was not found from the current directory. Targets resolve from the current directory, not from --cwd; pass "apps/api/src/auth.ts" instead
+```
+
 ### `inspect`
 
 Resolve instruction state for one target file.
@@ -191,7 +200,7 @@ ID. A source ID only resolves within its matching inspection context.
 | Option | Meaning |
 | --- | --- |
 | `--agent <name>` | Required for `inspect`, `discover`, and `explain`. `compare` checks all four agents. |
-| `--cwd <path>` | Simulated launch working directory. |
+| `--cwd <path>` | Simulated launch working directory. It does not change how the target resolves. |
 | `--root <path>` | Containment root. Defaults to the nearest `.git` ancestor, otherwise cwd. |
 | `--include-user` | Also inspect supported user, home, managed, and configured custom locations. Off by default. |
 | `--show-content` | For `inspect` and `discover`, include available bounded local content after best-effort credential redaction. Not supported by `compare`. |
@@ -213,6 +222,8 @@ content is required.
   with code `0`.
 - Invalid commands, missing required arguments, unknown agents, and source IDs
   that do not exist in the supplied context exit non-zero.
+- A target for `compare`, `inspect`, or `explain` that does not exist, or that
+  is a directory, exits non-zero. Targets resolve from the current directory.
 - Diagnostics do not change the process exit code, including diagnostics whose
   level is `error`.
 
@@ -388,7 +399,9 @@ console.log(renderJson(map));
 ```
 
 The programmatic API follows the same local, read-only contract as the CLI.
-Consumers should check `version` before relying on the JSON shape.
+Consumers should check `version` before relying on the JSON shape. Unlike the
+CLI, the library accepts a target that does not exist yet, so callers can
+check a planned file path. It records that as an assumption.
 
 ## Architecture
 

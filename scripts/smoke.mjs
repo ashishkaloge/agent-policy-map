@@ -127,6 +127,21 @@ check("compare reports meaningful differences across all four surfaces", () => {
   }
 });
 
+check("compare rejects a target that does not exist", () => {
+  try {
+    execFileSync("node", [cli, "compare", fix("codex/nested/apps/api/src/missing.ts")], {
+      encoding: "utf8",
+      stdio: "pipe",
+    });
+  } catch (err) {
+    if (err.status !== 1 || !/was not found/.test(err.stderr)) {
+      throw new Error("unexpected failure for a missing target");
+    }
+    return;
+  }
+  throw new Error("missing target exited 0");
+});
+
 if (failures > 0) {
   console.error(`\n${failures} smoke check(s) failed.`);
   process.exit(1);

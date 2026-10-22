@@ -63,7 +63,7 @@ export function buildContext(input: BuildContextInput): BuiltContext {
   const targetAbs = normalizeAbs(input.target);
   let targetExists = false;
   try {
-    targetExists = fs.lstatSync(targetAbs).isFile();
+    targetExists = fs.statSync(targetAbs).isFile();
   } catch {
     targetExists = false;
   }
