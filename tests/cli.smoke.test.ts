@@ -103,6 +103,30 @@ describe("cli smoke (built dist)", () => {
     expect(r.stdout).not.toContain("Use npm for installs across this repository.");
   });
 
+  it("compare prints documented suggestions under the agent they are for", () => {
+    const r = cli([
+      "compare",
+      fix("codex/nested/apps/api/src/auth.ts"),
+      "--cwd",
+      fix("codex/nested/apps/api"),
+      "--root",
+      fix("codex/nested"),
+    ]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain(
+      [
+        "  claude —: not discovered by this modeled adapter",
+        "    suggestion: add `@AGENTS.md` to ./apps/api/CLAUDE.md, creating it if needed [1]",
+      ].join("\n"),
+    );
+    expect(r.stdout).toContain(
+      "They do not show that an agent will load or follow it.",
+    );
+    expect(r.stdout).toContain(
+      "[1] https://code.claude.com/docs/en/memory#share-one-file-with-other-coding-tools",
+    );
+  });
+
   it("compare keeps warning diagnostics visible in human output", () => {
     const r = cli([
       "compare",
@@ -131,11 +155,15 @@ describe("cli smoke (built dist)", () => {
       version: string;
       command: string;
       summary: { meaningfulDifferences: number };
+      sources: Array<{ suggestions: Array<{ agent: string }> }>;
       agents: Record<string, { surface: string }>;
     };
     expect(comparison.version).toBe("1");
     expect(comparison.command).toBe("compare");
     expect(comparison.summary.meaningfulDifferences).toBe(2);
+    expect(
+      comparison.sources.flatMap((source) => source.suggestions.map((s) => s.agent)),
+    ).toEqual(["claude", "claude"]);
     expect(Object.keys(comparison.agents)).toEqual([
       "codex",
       "claude",

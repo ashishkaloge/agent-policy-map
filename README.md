@@ -30,8 +30,11 @@ node dist/cli.js compare fixtures/copilot/basic/src/app.ts \
 The result is a four-column policy matrix. It shows, for example, that
 `AGENTS.md` is active for Codex, Cursor, and Copilot in this fixture but is not
 discovered by Claude Code. It also gives the documented reason behind every
-meaningful difference. Discovered instruction content is treated as data and
-is never printed, executed, or modified by `compare`.
+meaningful difference and, where an agent's documented discovery rules allow
+it, a suggested change with a link to that documentation, such as adding
+`@AGENTS.md` to `CLAUDE.md` so Claude Code imports it. Discovered instruction
+content is treated as data and is never printed, executed, or modified by
+`compare`.
 
 This repository is a public preview. The npm package name is declared in the
 project metadata but is not published yet; use the source checkout until the
@@ -102,6 +105,41 @@ that source path; it does not mean the source was explicitly excluded.
 Claude Code, Cursor IDE, and GitHub Copilot CLI. It does not claim parity with
 the Codex app, Claude Desktop, Cursor CLI, or Copilot for VS Code.
 
+### Suggested changes
+
+For each meaningful difference in a project file, `compare` suggests a change
+for every agent that does not load the file, based only on that agent's
+documented discovery rules. Each suggestion is printed under the agent it is
+for and cites its source:
+
+```bash
+node dist/cli.js compare fixtures/codex/nested/apps/api/src/auth.ts \
+  --cwd fixtures/codex/nested/apps/api \
+  --root fixtures/codex/nested
+```
+
+```text
+WHY THEY DIFFER
+./AGENTS.md
+  codex active [codex-agents-md]: AGENTS.md discovered on the root→cwd path (./)
+  claude —: not discovered by this modeled adapter
+    suggestion: add `@AGENTS.md` to ./CLAUDE.md, creating it if needed [1]
+  cursor active [cursor-agents-md]: AGENTS.md applies to its directory subtree (./)
+  copilot active [copilot-agents-md]: AGENTS.md found on the repository-root-to-target search path
+...
+
+Suggestions apply documented discovery rules, for when you want that agent to read the file. They do not show that an agent will load or follow it.
+[1] https://code.claude.com/docs/en/memory#share-one-file-with-other-coding-tools
+```
+
+Suggestions cover `@` imports for Claude Code and Copilot CLI, the AGENTS.md
+launch path, `project_doc_fallback_filenames`, overrides, and the project-doc
+byte cap for Codex CLI, `.mdc` rules for Cursor IDE, and each agent's own
+path-scoped rule format. A suggestion applies only if you want that agent to
+read the file; some differences are intentional. Files outside the project,
+manual-only rules, personal files such as `CLAUDE.local.md`, Codex
+`AGENTS.override.md`, and skills get no suggestion.
+
 ## Commands
 
 ### `compare`
@@ -119,7 +157,8 @@ npm run cli -- compare apps/api/src/auth.ts --cwd . --root .
 
 `compare` does not accept `--agent` because all supported adapters are always
 checked. It also does not accept `--show-content`; the comparison contains
-metadata and evidence-backed reasons, never instruction bodies.
+metadata, evidence-backed reasons, and documented suggestions, never
+instruction bodies.
 
 The target resolves from the current directory, not from `--cwd`, and must be
 an existing file. When a relative target exists only under `--cwd`, the error
@@ -305,7 +344,11 @@ npm --silent run cli -- compare src/cli.ts --cwd . --root . --json
 - the shared target, launch cwd, containment root, and user-scope choice;
 - a summary count of meaningful local differences;
 - source paths grouped into per-agent arrays so duplicate entries are not lost;
+- a `suggestions` array on each source row, empty unless a documented change
+  applies, with the `agent`, a short `text`, and the documentation `reference`;
 - each surface's assumptions, diagnostics, and context estimate.
+
+`suggestions` was added to version 1 without changing any existing field.
 
 `inspect` and `discover` emit a versioned `PolicyMap` containing:
 

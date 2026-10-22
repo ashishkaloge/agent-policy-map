@@ -60,6 +60,7 @@ versioned PolicyMap
         +--> compare composes four PolicyMaps
                     |
                     +--> cross-agent matrix
+                    +--> documented suggestions
                     +--> versioned PolicyComparison
 ```
 
@@ -99,6 +100,12 @@ Excluded-only and unknown-external-only rows remain visible but do not inflate
 that count. It does not merge instructions, choose a winner, or infer
 cross-agent precedence.
 
+`src/core/suggest.ts` adds suggestions to meaningful differences in project
+files. Each one targets an agent that does not load the file, applies one
+documented discovery rule of that agent, and cites the official page. It
+reads only the already-redacted comparison rows, never files, and it never
+claims that an agent loads or follows the result.
+
 ## Normalized contract
 
 The public `PolicyMap` type lives in `src/types.ts`. Its top-level fields are:
@@ -122,7 +129,8 @@ The versioned `PolicyComparison` contract also lives in `src/types.ts`. It
 contains the shared target context, a difference summary, grouped source arrays,
 and each agent's surface label, assumptions, diagnostics, and context estimate.
 Arrays are intentional because multiple source entries can share one redacted
-display path.
+display path. Each row also carries a `suggestions` array, added to version 1
+without changing existing fields.
 
 ## Agent adapters
 
@@ -149,7 +157,8 @@ report ambiguity or omit `order` instead of choosing a convenient winner.
 src/
   adapters/     agent-specific discovery behind one interface
   context/      byte, line, and labelled token estimates
-  core/         context resolution, inspection orchestration, stable IDs
+  core/         context resolution, inspection orchestration, stable IDs,
+                comparison and documented suggestions
   diagnostics/  duplicates and evidence-backed possible conflicts
   frontmatter/  YAML parsing and documented-field validation
   fs/           contained, bounded reads and directory traversal

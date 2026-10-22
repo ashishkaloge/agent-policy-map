@@ -64,8 +64,18 @@ function sourceTable(sources: ComparisonSource[]): string[] {
   return out;
 }
 
+/**
+ * Explain each meaningful difference, with any documented suggestion printed
+ * under the agent it is for and its source listed once as a numbered note.
+ */
 function evidenceLines(sources: ComparisonSource[]): string[] {
   const out: string[] = [];
+  const references: string[] = [];
+  const noteFor = (reference: string): number => {
+    if (!references.includes(reference)) references.push(reference);
+    return references.indexOf(reference) + 1;
+  };
+
   for (const source of sources.filter(
     (candidate) => candidate.meaningfulDifference,
   )) {
@@ -74,14 +84,30 @@ function evidenceLines(sources: ComparisonSource[]): string[] {
       const entries = source.agents[agent];
       if (entries.length === 0) {
         out.push(`  ${agent} —: not discovered by this modeled adapter`);
-        continue;
       }
       for (const entry of entries) {
         out.push(
           `  ${agent} ${entry.state} [${entry.kind}]: ${entry.matchReason}`,
         );
       }
+      for (const suggestion of source.suggestions.filter(
+        (candidate) => candidate.agent === agent,
+      )) {
+        out.push(
+          `    suggestion: ${suggestion.text} [${noteFor(suggestion.reference)}]`,
+        );
+      }
     }
+  }
+
+  if (references.length > 0) {
+    out.push("");
+    out.push(
+      "Suggestions apply documented discovery rules, for when you want that agent to read the file. They do not show that an agent will load or follow it.",
+    );
+    references.forEach((reference, index) => {
+      out.push(`[${index + 1}] ${reference}`);
+    });
   }
   return out;
 }

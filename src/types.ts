@@ -95,6 +95,19 @@ export type ComparisonAgent = {
   context: ContextEstimate;
 };
 
+/**
+ * A change that the documented discovery rules of one agent support. It is a
+ * suggestion, not evidence that the agent will load or follow the file.
+ */
+export type ComparisonSuggestion = {
+  /** The agent the change is meant for. */
+  agent: AgentName;
+  /** Short, imperative description of the change. */
+  text: string;
+  /** Official documentation for the discovery rule the suggestion relies on. */
+  reference: string;
+};
+
 export type ComparisonSource = {
   /** Redacted display path shared by the grouped source entries. */
   path: string;
@@ -105,6 +118,12 @@ export type ComparisonSource = {
   meaningfulDifference: boolean;
   /** Arrays preserve multiple entries that share one display path. */
   agents: Record<AgentName, PolicySource[]>;
+  /**
+   * Documented changes for meaningful differences in project files. Empty
+   * when no documented rule supports a change. Added to version 1 without
+   * changing existing fields.
+   */
+  suggestions: ComparisonSuggestion[];
 };
 
 export type PolicyComparison = {

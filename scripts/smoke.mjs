@@ -125,6 +125,10 @@ check("compare reports meaningful differences across all four surfaces", () => {
   for (const want of ["Codex CLI", "Claude Code", "Cursor IDE", "GitHub Copilot CLI"]) {
     if (!surfaces.includes(want)) throw new Error(`missing surface ${want}`);
   }
+  const suggestions = comparison.sources.flatMap((source) => source.suggestions);
+  if (suggestions.length === 0 || !suggestions.every((s) => s.reference.startsWith("https://"))) {
+    throw new Error("expected documented suggestions with references");
+  }
 });
 
 check("compare rejects a target that does not exist", () => {
