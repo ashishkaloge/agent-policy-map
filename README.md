@@ -20,17 +20,17 @@ Requires Node.js 20 or newer.
 Run from your project root, replacing `src/app.ts` with an existing file:
 
 ```bash
-npx agent-policy-map@0.1.0 compare src/app.ts --cwd . --root .
+npx agent-policy-map@0.1.1 compare src/app.ts --cwd . --root .
 ```
 
 Or install the preview as a development dependency:
 
 ```bash
-npm install --save-dev agent-policy-map@0.1.0
+npm install --save-dev agent-policy-map@0.1.1
 npx agent-policy-map --help
 ```
 
-Version 0.1.0 is a public preview. Review the supported surfaces and limitations
+Version 0.1.1 is a public preview. Review the supported surfaces and limitations
 below before relying on its results.
 
 ## 60-second demo from source
