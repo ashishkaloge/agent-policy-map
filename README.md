@@ -543,6 +543,8 @@ security-relevant policy results privately. See [SECURITY.md](SECURITY.md).
 - [awesome-agentic-engineering](https://github.com/ashishkaloge/awesome-agentic-engineering)
 - [awesome-agent-instructions](https://github.com/ashishkaloge/awesome-agent-instructions)
 
+Maintainers: see [npm releases](RELEASING.md) for the trusted publishing workflow.
+
 ## License
 
 [MIT](LICENSE)
