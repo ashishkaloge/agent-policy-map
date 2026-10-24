@@ -2,14 +2,15 @@
 
 ## Supported version
 
-Until the first tagged release, only the latest commit on `main` is supported.
-After releases begin, this section will list supported release lines.
+The latest published 0.1.x preview release and the latest commit on `main` are
+supported. Use the latest patch release when checking whether a vulnerability
+still reproduces.
 
 ## Report a vulnerability privately
 
 Use [GitHub private vulnerability reporting](https://github.com/ashishkaloge/agent-policy-map/security/advisories/new).
-This is the required reporting route. Repository maintainers must enable it
-before the first public release and keep it available for supported versions.
+This is the required reporting route and is enabled for this repository.
+Repository maintainers must keep it available for supported versions.
 
 Do not open a public issue, discussion, or pull request for a security problem.
 If private vulnerability reporting is unavailable, contact the maintainer

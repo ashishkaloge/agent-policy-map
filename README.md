@@ -13,9 +13,27 @@ API key, telemetry service, network service, or LLM.
 
 ![Agent Policy Map compares one target across Codex CLI, Claude Code, Cursor IDE, and GitHub Copilot CLI](docs/assets/agent-policy-map-demo.svg)
 
-## 60-second demo
+## Install
 
 Requires Node.js 20 or newer.
+
+Run from your project root, replacing `src/app.ts` with an existing file:
+
+```bash
+npx agent-policy-map@0.1.0 compare src/app.ts --cwd . --root .
+```
+
+Or install the preview as a development dependency:
+
+```bash
+npm install --save-dev agent-policy-map@0.1.0
+npx agent-policy-map --help
+```
+
+Version 0.1.0 is a public preview. Review the supported surfaces and limitations
+below before relying on its results.
+
+## 60-second demo from source
 
 ```bash
 git clone https://github.com/ashishkaloge/agent-policy-map.git
@@ -35,10 +53,6 @@ it, a suggested change with a link to that documentation, such as adding
 `@AGENTS.md` to `CLAUDE.md` so Claude Code imports it. Discovered instruction
 content is treated as data and is never printed, executed, or modified by
 `compare`.
-
-This repository is a public preview. The npm package name is declared in the
-project metadata but is not published yet; use the source checkout until the
-first package release.
 
 ## Support at a glance
 
