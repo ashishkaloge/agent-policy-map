@@ -1,6 +1,6 @@
 {
   "name": "agent-policy-map",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Compare which coding-agent instructions apply to one file across Codex, Claude Code, Cursor, and Copilot.",
   "keywords": [
     "agents",
